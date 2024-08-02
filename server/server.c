@@ -11,8 +11,6 @@
 #include "socket.h"
 #include "game.h"
 
-void * clnt_handle(void * arg);
-
 int main(int argc, char * argv[]){
     int opt;
     char * p;
@@ -36,7 +34,4 @@ int main(int argc, char * argv[]){
         printf("Terminating Program\n");
         exit(1);
     }
-}
-
-void * clnt_handle(void * arg){
 }
