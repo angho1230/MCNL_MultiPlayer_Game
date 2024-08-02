@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/epoll.h>
+#include <unistd.h>
 #include <time.h>
 #include "socket.h"
 #include "game.h"
@@ -72,4 +74,49 @@ int game_init(board_info * binfo, game_info * ginfo, int n, int s, int b, int t,
     binfo->room_width = s;
     binfo->room_height = s;
     return sock;
+}
+
+
+int game_start(board_info * binfo, game_info * ginfo, int serv_sd){
+    int epfd, event_cnt;
+    int players=0;
+    int * player_sock;
+    struct epoll_event *ep_events;
+    struct epoll_event event;
+    
+    player_sock = (int *)malloc(sizeof(int)*binfo->player_number);
+    epfd = epoll_create(binfo->player_number);
+    ep_events = (struct epoll_event *)malloc(sizeof(struct epoll_event)*binfo->player_number);
+    event.events = EPOLLIN;
+    event.data.fd = serv_sd;
+    epoll_ctl(epfd, EPOLL_CTL_ADD, serv_sd, &event);
+    while(players < binfo->player_number){
+        event_cnt = epoll_wait(epfd, ep_events, binfo->player_number, 33);
+        if(event_cnt == -1){
+            printf("Error occurred in epoll wait()\n");
+            return -1;
+        }
+        for(int i = 0; i < event_cnt; i++){
+            if(ep_events[i].data.fd == serv_sd){
+                int clnt_sd = tcp_accept(serv_sd);
+                event.events = EPOLLIN;
+                event.data.fd = clnt_sd;
+                epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sd, &event);
+                printf("connected client: %d\n", clnt_sd);
+                players++;
+            }
+            else{
+                char buf[10];
+                int len = read(ep_events[i].data.fd, buf, 10);
+                if(len == 0){
+                    epoll_ctl(epfd, EPOLL_CTL_DEL, ep_events[i].data.fd, 0x0);
+                    close(ep_events[i].data.fd);
+                    printf("closed client %d\n", ep_events[i].data.fd);
+                }
+            }
+        }
+    }
+    for(int i = 0; i < binfo->player_number; i++){
+        binfo->player_number = i;
+    }
 }
