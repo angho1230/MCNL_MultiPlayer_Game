@@ -10,6 +10,12 @@
 #include "socket.h"
 
 
+int tcp_accept(int serv_sd){
+    struct sockaddr_in clnt_adr;
+    socklen_t adr_sz;
+    adr_sz = sizeof(clnt_adr);
+    return accept(serv_sd, (struct sockaddr *)&clnt_adr, &adr_sz);
+}
 int tcp_server_create(const char * port_c){
     int serv_sd=socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in serv_adr;
