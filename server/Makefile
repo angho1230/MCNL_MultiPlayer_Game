@@ -1,2 +1,2 @@
-all: server.c socket.c socket.h
-	gcc server.c socket.c -lpthread -o server
+all: server.c socket.c socket.h game.c game.c board.* player.*
+	gcc *.c -lpthread -o server

@@ -27,6 +27,11 @@ int main(int argc, char * argv[]){
                 exit(1);
         }
     }
+    if(!(n && s && b && t && p)){
+        printf("Usage ./server -n <# of players> -s <size of field> -b <# of tiles> -t <time> -p <port>");
+        exit(1);
+    }
+    printf("%d %d %d %d %s\n", n, s, b, t, p);
     game_info ginfo;
     board_info binfo;
     int serv_sd;
@@ -34,4 +39,9 @@ int main(int argc, char * argv[]){
         printf("Terminating Program\n");
         exit(1);
     }
+    if(game_start(serv_sd) == -1){
+        printf("Terminating Program\n");
+        exit(1);
+    }
+    return 0;
 }

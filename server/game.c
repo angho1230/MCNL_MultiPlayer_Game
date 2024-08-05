@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <pthread.h>
+#include <errno.h>
 #include "socket.h"
 #include "game.h"
 
@@ -115,6 +116,7 @@ int game_init(board_info * binfo_l, game_info * ginfo_l, int n, int s, int b, in
     binfo->play_time = t;
     binfo->room_width = s;
     binfo->room_height = s;
+    binfo->player_number = n;
     pthread_mutex_init(&mutex, 0x0);
 
     game_on = 1000/MILSEC * binfo->play_time;
@@ -137,15 +139,53 @@ int game_start(int serv_sd){
     }
 
     epfd = epoll_create(binfo->player_number);
-    ep_events = (struct epoll_event *)malloc(sizeof(struct epoll_event)*binfo->player_number);
+    if(epfd == -1){
+        int err = errno;
+        printf("failed creating epoll\n");
+        switch(err){
+            case  EINVAL : 
+                printf("size is not positive.\n");
+                break;
+
+            case EMFILE:
+                printf("Limit of # of opend files\n");
+                break;
+
+
+            case ENOMEM :
+                printf("No sufficient memory"); 
+                break;
+            }
+        return -1;
+    }
+    ep_events = malloc(sizeof(struct epoll_event)*binfo->player_number);
     event.events = EPOLLIN;
     event.data.fd = serv_sd;
     epoll_ctl(epfd, EPOLL_CTL_ADD, serv_sd, &event);
     
+    printf("searching for players(#%d)\n", binfo->player_number);
     while(players < binfo->player_number){
         event_cnt = epoll_wait(epfd, ep_events, binfo->player_number, -1);
         if(event_cnt == -1){
+            int err = errno;
             printf("Error occurred in epoll wait()\n");
+            switch(err){
+                case EBADF : 
+                    printf("epfd is not a valid file descriptor.\n");
+                    break;
+                case EFAULT :
+                    printf("The memory area pointed to by events is not accessible with write permissions.\n");
+                    break;
+                case EINTR :
+                    printf("The call was interrupted by a signal handler before either\
+              (1) any of the requested events occurred or (2) the\
+              timeout expired; see signal(7).\n"); 
+                    break;
+                case EINVAL: 
+                    printf("epfd is not an epoll file descriptor, or maxevents is less\
+              than or equal to zero.\n"); 
+                    break;
+            }
             return -1;
         }
         for(int i = 0; i < event_cnt; i++){
@@ -160,6 +200,7 @@ int game_start(int serv_sd){
                     if(player_sock[j] == -1){
                         player_sock[j] = clnt_sd;
                         players++;
+                        printf("added player #%d\n", j);
                         break;
                     }
                 }
