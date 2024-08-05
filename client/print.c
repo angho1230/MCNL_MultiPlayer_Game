@@ -4,17 +4,18 @@
 static game_info * ginfo;
 static board_info * binfo;
 int mx, my;
+WINDOW * win, *win_prev;
 
 void rectangle(int y1, int x1, int y2, int x2)
 {
-    mvhline(y1, x1, 0, x2-x1);
-    mvhline(y2, x1, 0, x2-x1);
-    mvvline(y1, x1, 0, y2-y1);
-    mvvline(y1, x2, 0, y2-y1);
-    mvaddch(y1, x1, ACS_ULCORNER);
-    mvaddch(y2, x1, ACS_LLCORNER);
-    mvaddch(y1, x2, ACS_URCORNER);
-    mvaddch(y2, x2, ACS_LRCORNER);
+    mvwhline(win, y1, x1, 0, x2-x1);
+    mvwhline(win, y2, x1, 0, x2-x1);
+    mvwvline(win, y1, x1, 0, y2-y1);
+    mvwvline(win, y1, x2, 0, y2-y1);
+    mvwaddch(win, y1, x1, ACS_ULCORNER);
+    mvwaddch(win, y2, x1, ACS_LLCORNER);
+    mvwaddch(win, y1, x2, ACS_URCORNER);
+    mvwaddch(win, y2, x2, ACS_LRCORNER);
 }
 
 void tile(int x, int y){
@@ -39,12 +40,25 @@ int idx_to_xy(int ix, int iy, int * x, int * y){
 }
 
 void print_game_info(game_info * _ginfo){
+    win_prev = win;
     ginfo = _ginfo;
     getmaxyx(stdscr, my, mx);
+    win = newwin(my, mx, 0, 0);
     for(int i = 0; i < binfo->room_width*binfo->room_height; i++){
         int x, y;
         if(idx_to_xy(i%binfo->room_width, i/binfo->room_width, &x, &y) == 0){
-            tile(x, y);
+            if(ginfo->board[i] == 0)
+                tile(x, y);
+            else if(ginfo->board[i] == 1){
+                wattron(win, COLOR_PAIR(1));
+                tile(x, y);
+                wattroff(win, COLOR_PAIR(1));
+            }
+            else if(ginfo->board[i] == 2){
+                wattron(win, COLOR_PAIR(2));
+                tile(x, y);
+                wattroff(win, COLOR_PAIR(2));
+            }
         }
     }
     for(int i = 0; i < binfo->player_number; i++){
@@ -52,9 +66,11 @@ void print_game_info(game_info * _ginfo){
         if(idx_to_xy(ginfo->players[i].x, ginfo->players[i].y, &x, &y) == 0){
             x += 1;
             y += 1;
-            printw("%d", i);
+            mvwprintw(win, y, x, "%d", i);
         }
     }
+    wrefresh(win);
+    delwin(win_prev);
 }
 
 int init_print(board_info *_binfo){
@@ -62,5 +78,8 @@ int init_print(board_info *_binfo){
     ginfo = 0x0;
     initscr();
     start_color();
+    noecho();
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_BLUE, COLOR_BLACK);
     return 0;
 }

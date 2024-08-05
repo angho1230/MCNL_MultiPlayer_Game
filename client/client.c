@@ -35,7 +35,8 @@ int main(int argc, char * argv[]){
     if(connect(sock, (struct sockaddr*)&serv_adr, sizeof(serv_adr)) == -1){
         error_handling("connect() error!");
     }
-    read(sock, &binfo, sizeof(board_info));
+    read_full(sock, &binfo, sizeof(board_info));
+    game_info_init(&ginfo, &binfo);
     init_print(&binfo);
     pthread_t pid;
     pthread_create(&pid, 0x0, read_from_server, &sock);
@@ -53,15 +54,19 @@ int main(int argc, char * argv[]){
             break;
         }
     }
+    endwin();
     return 0;
 }
-
+int r = 0;
 void * read_from_server(void * a){
     int sock = *(int *)a;
-    read_game_info(sock, &ginfo);
-    print_game_info(&ginfo);
-    if(ginfo.game_end){
-        game_on = 0;
+    while(game_on){
+        read_game_info(sock, &ginfo);
+        mvprintw(0,0, "read %d", r++);
+        print_game_info(&ginfo);
+        if(ginfo.game_end){
+            game_on = 0;
+        }
     }
     return 0x0;
 }

@@ -18,6 +18,8 @@ static board_info * binfo;
 static int game_on;
 static pthread_mutex_t mutex;
 
+static int flag = 0;
+
 typedef struct{
     int id;
 }arg;
@@ -130,8 +132,8 @@ int game_start(int serv_sd){
     struct epoll_event *ep_events;
     struct epoll_event event;
     struct itimerval timer;
-    timer.it_value.tv_sec = MILSEC/1000;
-    timer.it_value.tv_usec = (MILSEC%1000)*1000000;
+    timer.it_value.tv_sec = 0;
+    timer.it_value.tv_usec = (MILSEC*1000);
     timer.it_interval = timer.it_value;
     player_sock = (int *)malloc(sizeof(int)*binfo->player_number);
     for(int i = 0; i < binfo->player_number; i++){
@@ -163,8 +165,8 @@ int game_start(int serv_sd){
     event.data.fd = serv_sd;
     epoll_ctl(epfd, EPOLL_CTL_ADD, serv_sd, &event);
     
-    printf("searching for players(#%d)\n", binfo->player_number);
     while(players < binfo->player_number){
+        printf("searching for players(#%d)\n", binfo->player_number - players);
         event_cnt = epoll_wait(epfd, ep_events, binfo->player_number, -1);
         if(event_cnt == -1){
             int err = errno;
@@ -194,7 +196,6 @@ int game_start(int serv_sd){
                 event.events = EPOLLIN;
                 event.data.fd = clnt_sd;
                 epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sd, &event);
-                player_sock[players] = clnt_sd;
                 printf("connected client: %d\n", clnt_sd);
                 for(int j = 0; j < binfo->player_number; j++){
                     if(player_sock[j] == -1){
@@ -225,11 +226,13 @@ int game_start(int serv_sd){
     }
     printf("Starting Game\n");
     for(int i = 0; i < binfo->player_number; i++){
+        binfo->id = i;
+        write(player_sock[i], binfo, sizeof(board_info));
+    }
+    for(int i = 0; i < binfo->player_number; i++){
         pthread_t pid;
         arg a;
         a.id = i;
-        binfo->id = i;
-        write(player_sock[i], binfo, sizeof(board_info));
         pthread_create(&pid, 0x0, game_clnt, &a);
     }
     if(signal(SIGALRM, game_timer) == SIG_ERR){
@@ -247,7 +250,7 @@ int game_start(int serv_sd){
     timer.it_value.tv_sec = 0;
     timer.it_interval = timer.it_value;
     if(setitimer(ITIMER_REAL, &timer, 0x0) == -1){
-        printf("Error occurred in setitimer()\n");
+        printf("Error occurred in setitimer() (timer delete)\n");
         return -1;
     }
     printf("Game Over\n");
@@ -259,9 +262,14 @@ void game_timer(int a){
     if(game_on == 0){
         ginfo->game_end = 1;
     }
+    if(game_on != 0 && flag == 0 && game_on%MILSEC != 0){
+        return;
+    }
+    flag = 0;
     for(int i = 0; i < binfo->player_number; i++){
         write_game_info(player_sock[i]);
     }
+    printf("writing game info %d\n", game_on);
     return;
 }
 
@@ -338,8 +346,9 @@ int game_check_valid(int input, int id){
         break;
         default: break;
     }
+    if(ret) flag ++;
     pthread_mutex_unlock(&mutex);
-    return 1;
+    return ret;
 }
 
 void * game_clnt(void * _a){

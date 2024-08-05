@@ -21,15 +21,22 @@ typedef struct{
     int id;
 }arg;
 
+int game_info_init(game_info *ginfo, board_info *_binfo){
+    binfo = _binfo;
+    ginfo->board = (char*)malloc(sizeof(char)*binfo->room_width*binfo->room_height);
+    ginfo->players = (player*)malloc(sizeof(player)*binfo->player_number);
+    ginfo->game_end = 0;
+    return 0;
+}
 int read_game_info(int sock, game_info * _ginfo){
     ginfo = _ginfo;
     if(ginfo == 0x0){
         printf("Unable to find game info\n");
         return -1;
     }
-    read(sock, ginfo->board, binfo->room_width*binfo->room_height);
-    read(sock, ginfo->players, sizeof(player)*binfo->player_number);
-    read(sock, &ginfo->game_end, sizeof(int));
+    read_full(sock, ginfo->board, binfo->room_width*binfo->room_height);
+    read_full(sock, ginfo->players, sizeof(player)*binfo->player_number);
+    read_full(sock, &ginfo->game_end, sizeof(int));
     return 0;
 }
 int write_game_info(int sock){

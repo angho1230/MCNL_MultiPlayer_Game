@@ -15,3 +15,4 @@ void * game_clnt(void * );
 int game_wait();
 int game_start(int serv_sd);
 void game_timer(int);
+int game_info_init(game_info *ginfo, board_info *binfo);
