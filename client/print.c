@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <ncurses.h>
 #include "print.h"
 
@@ -44,6 +45,12 @@ void print_game_info(game_info * _ginfo){
     ginfo = _ginfo;
     getmaxyx(stdscr, my, mx);
     win = newwin(my, mx, 0, 0);
+    for(int i = 0; i < my; i++){
+        mvwprintw(win, i, 0, " ");
+        for(int j = 0; j < mx-1; j++){
+            wprintw(win, " ");
+        }
+    }
     for(int i = 0; i < binfo->room_width*binfo->room_height; i++){
         int x, y;
         if(idx_to_xy(i%binfo->room_width, i/binfo->room_width, &x, &y) == 0){
@@ -67,12 +74,10 @@ void print_game_info(game_info * _ginfo){
             x += 2;
             y += 1;
             if(ginfo->players[i].team == 1){
-
                 wattron(win, COLOR_PAIR(1));
                 mvwprintw(win, y, x, "%d", i);
                 wattroff(win, COLOR_PAIR(1));
             }else{
-
                 wattron(win, COLOR_PAIR(2));
                 mvwprintw(win, y, x, "%d", i);
                 wattroff(win, COLOR_PAIR(2));
@@ -94,6 +99,7 @@ int init_print(board_info *_binfo){
     return 0;
 }
 void print_result(int s1, int s2){
+    sleep(1);
     if(s1 > s2){
         mvwprintw(win, 1, 7, "Red Win");
     }
