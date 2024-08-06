@@ -69,6 +69,15 @@ int main(int argc, char * argv[]){
 
     //getch();
     endwin();
+    if(s1 > s2){
+        printf("Red win\n");
+    }
+    else if(s1 < s2){
+        printf("Blue win\n");
+    }
+    else{
+        printf("Even\n");
+    }
     return 0;
 }
 int r = 0;
