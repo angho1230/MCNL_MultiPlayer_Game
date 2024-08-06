@@ -11,6 +11,11 @@
 #include "socket.h"
 #include "game.h"
 
+
+/***
+*  Parse an option and initialize game
+*  After that start a game
+* ***/
 int main(int argc, char * argv[]){
     int opt;
     char * p;

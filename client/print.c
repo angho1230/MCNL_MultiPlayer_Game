@@ -64,9 +64,19 @@ void print_game_info(game_info * _ginfo){
     for(int i = 0; i < binfo->player_number; i++){
         int x, y;
         if(idx_to_xy(ginfo->players[i].x, ginfo->players[i].y, &x, &y) == 0){
-            x += 1;
+            x += 2;
             y += 1;
-            mvwprintw(win, y, x, "%d", i);
+            if(ginfo->players[i].team == 1){
+
+                wattron(win, COLOR_PAIR(1));
+                mvwprintw(win, y, x, "%d", i);
+                wattroff(win, COLOR_PAIR(1));
+            }else{
+
+                wattron(win, COLOR_PAIR(2));
+                mvwprintw(win, y, x, "%d", i);
+                wattroff(win, COLOR_PAIR(2));
+            }
         }
     }
     wrefresh(win);
@@ -82,4 +92,16 @@ int init_print(board_info *_binfo){
     init_pair(1, COLOR_RED, COLOR_BLACK);
     init_pair(2, COLOR_BLUE, COLOR_BLACK);
     return 0;
+}
+void print_result(int s1, int s2){
+    if(s1 > s2){
+        mvwprintw(win, 1, 7, "Red Win");
+    }
+    else if(s1 < s2){
+        mvwprintw(win, 1, 7, "Blue Win");
+    }
+    else{
+        mvwprintw(win, 1, 7, "Even!!");
+    }
+    wrefresh(win);
 }

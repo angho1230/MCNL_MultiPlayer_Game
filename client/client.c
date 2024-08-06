@@ -20,7 +20,9 @@ static board_info binfo;
 static game_info ginfo;
 
 int main(int argc, char * argv[]){
+
     int sock;
+    int s1 = 0, s2 = 0;
     struct sockaddr_in serv_adr;
 
     if(argc != 3){
@@ -54,6 +56,18 @@ int main(int argc, char * argv[]){
             break;
         }
     }
+
+    for(int i = 0; i < binfo.room_height*binfo.room_width; i++){
+        if(ginfo.board[i] == 1){
+            s1++;
+        }
+        else if(ginfo.board[i] == 2){
+            s2++;
+        }
+    }
+    print_result(s1, s2);
+
+    //getch();
     endwin();
     return 0;
 }

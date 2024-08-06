@@ -24,6 +24,10 @@ typedef struct{
     int id;
 }arg;
 
+/***
+* read game info 
+* pair with write_game_info
+*/
 int read_game_info(int sock){
     if(ginfo == 0x0){
         printf("Unable to find game info\n");
@@ -34,6 +38,10 @@ int read_game_info(int sock){
     read(sock, &ginfo->game_end, sizeof(int));
     return 0;
 }
+/*
+* write game info
+* pair with read_game_info
+*/
 int write_game_info(int sock){
     if(ginfo == 0x0){
         printf("Unable to find game info\n");
@@ -44,7 +52,9 @@ int write_game_info(int sock){
     write(sock, &ginfo->game_end, sizeof(int));
     return 0;
 }
-
+/*
+* initialize game_info and board_info with parsed option
+*/
 int game_init(board_info * binfo_l, game_info * ginfo_l, int n, int s, int b, int t, const char * p){
     if(ginfo_l == 0x0){
         printf("Unable to find game info\n");
@@ -95,7 +105,6 @@ int game_init(board_info * binfo_l, game_info * ginfo_l, int n, int s, int b, in
     int sock = tcp_server_create(p);
     ginfo->board = (char *)malloc(sizeof(char)*s*s); 
     memset(ginfo->board, 0, s*s*sizeof(char));
-    
     srand(time(0x0));
     int tsize = s*s;
     for(int i = 0; i < b; i++){
@@ -110,10 +119,11 @@ int game_init(board_info * binfo_l, game_info * ginfo_l, int n, int s, int b, in
     ginfo->players = (player *)malloc(sizeof(player)*n);
     for(int i = 0; i < n; i++){
         ginfo->players[i].player_id = i;
-        ginfo->players[i].team = i%2;
+        ginfo->players[i].team = i%2+1;
         ginfo->players[i].x = i%2 ? s-1 : 0;
         ginfo->players[i].y = i%2;
     }
+    
     binfo->tile_num = b;
     binfo->play_time = t;
     binfo->room_width = s;
@@ -125,7 +135,9 @@ int game_init(board_info * binfo_l, game_info * ginfo_l, int n, int s, int b, in
     return sock;
 }
 
-
+/*
+* start and run the entire game
+*/
 int game_start(int serv_sd){
     int epfd, event_cnt;
     int players=0;
@@ -135,11 +147,12 @@ int game_start(int serv_sd){
     timer.it_value.tv_sec = 0;
     timer.it_value.tv_usec = (MILSEC*1000);
     timer.it_interval = timer.it_value;
+
+    //player_sock to store the socket descriptor
     player_sock = (int *)malloc(sizeof(int)*binfo->player_number);
     for(int i = 0; i < binfo->player_number; i++){
         player_sock[i] = -1;
     }
-
     epfd = epoll_create(binfo->player_number);
     if(epfd == -1){
         int err = errno;
@@ -165,6 +178,7 @@ int game_start(int serv_sd){
     event.data.fd = serv_sd;
     epoll_ctl(epfd, EPOLL_CTL_ADD, serv_sd, &event);
     
+    //use epoll to track the user connection to the server socket
     while(players < binfo->player_number){
         printf("searching for players(#%d)\n", binfo->player_number - players);
         event_cnt = epoll_wait(epfd, ep_events, binfo->player_number, -1);
@@ -191,6 +205,7 @@ int game_start(int serv_sd){
             return -1;
         }
         for(int i = 0; i < event_cnt; i++){
+            //new connection
             if(ep_events[i].data.fd == serv_sd){
                 int clnt_sd = tcp_accept(serv_sd);
                 event.events = EPOLLIN;
@@ -206,6 +221,7 @@ int game_start(int serv_sd){
                     }
                 }
             }
+            //lost connection
             else{
                 char buf[10];
                 int len = read(ep_events[i].data.fd, buf, 10);
@@ -225,16 +241,19 @@ int game_start(int serv_sd){
         }
     }
     printf("Starting Game\n");
+    //write board_info to every client
     for(int i = 0; i < binfo->player_number; i++){
         binfo->id = i;
         write(player_sock[i], binfo, sizeof(board_info));
     }
-    for(int i = 0; i < binfo->player_number; i++){
+
+    //make thread to track client input
+    for(long i = 0; i < binfo->player_number; i++){
         pthread_t pid;
-        arg a;
-        a.id = i;
-        pthread_create(&pid, 0x0, game_clnt, &a);
+        pthread_create(&pid, 0x0, game_clnt, (void *)i);
     }
+
+    //set timer in 100ms rate
     if(signal(SIGALRM, game_timer) == SIG_ERR){
         printf("Error occurred in signal()\n");
         return -1;
@@ -257,6 +276,11 @@ int game_start(int serv_sd){
     return 0;
 }
 
+
+/*
+* for every 100ms, check if flag is true
+* if true write new game_info to clients
+*/
 void game_timer(int a){
     game_on--;
     if(game_on == 0){
@@ -273,6 +297,10 @@ void game_timer(int a){
     return;
 }
 
+/*
+* check if the movement is valid if it is not, return 0
+* use mutex to avoid race condition
+*/
 int game_check_valid(int input, int id){
     if(ginfo == 0x0){
         printf("Unable to find game info\n");
@@ -351,9 +379,13 @@ int game_check_valid(int input, int id){
     return ret;
 }
 
+/*
+* function to handle client
+*/
 void * game_clnt(void * _a){
-    int id = ((arg *)_a)->id;
+    int id = (long)_a;
     int sock = player_sock[id];
+    printf("id : %d\n", id);
     while(game_on){
         int input;
         read(sock, &input, sizeof(int));
